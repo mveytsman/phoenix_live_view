@@ -1428,10 +1428,12 @@ class DOMPatch {
           let isAppend = el.getAttribute(phxUpdate) === "append"
           if(isAppend){
             idsBefore.reverse().forEach(id => {
+              console.log("Append reordering: " + id)
               maybe(document.getElementById(id), child => el.insertBefore(child, el.firstChild))
             })
           } else {
             idsBefore.forEach(id => {
+              console.log("Prepend reordering: " + id)
               maybe(document.getElementById(id), child => el.appendChild(child))
             })
           }
