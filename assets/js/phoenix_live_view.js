@@ -1345,9 +1345,15 @@ class DOMPatch {
 
     this.trackBefore("added", container)
     this.trackBefore("updated", container, container)
-
-    liveSocket.time("morphdom", () => {
-      morphdom(targetContainer, diffHTML, {
+    let nodeAdded =  (el) => {
+      if(DOM.isNowTriggerFormExternal(el, phxTriggerExternal)){ el.submit() }
+      // nested view handling
+      if(DOM.isPhxChild(el) && view.ownsElement(el)){
+        this.trackAfter("phxChildAdded", el)
+      }
+      added.push(el)
+    }
+    let morphDomOpts = {
         childrenOnly: targetContainer.getAttribute(PHX_COMPONENT) === null,
         onBeforeNodeAdded: (el) => {
           //input handling
@@ -1355,14 +1361,7 @@ class DOMPatch {
           this.trackBefore("added", el)
           return el
         },
-        onNodeAdded: (el) => {
-          if(DOM.isNowTriggerFormExternal(el, phxTriggerExternal)){ el.submit() }
-          // nested view handling
-          if(DOM.isPhxChild(el) && view.ownsElement(el)){
-            this.trackAfter("phxChildAdded", el)
-          }
-          added.push(el)
-        },
+        onNodeAdded: nodeAdded,
         onNodeDiscarded: (el) => {
           // nested view handling
           if(DOM.isPhxChild(el)){ liveSocket.destroyViewByEl(el) }
@@ -1421,13 +1420,49 @@ class DOMPatch {
             //     new content contains only new ids, because it will simply
             //     be appended to the container
             if(DOM.isPhxUpdate(toEl, phxUpdate, ["append", "prepend"])){
+              let fastMode = true
               let isAppend = toEl.getAttribute(phxUpdate) === "append"
-              let idsBefore = Array.from(fromEl.children).map(child => child.id)
-              let newIds = Array.from(toEl.children).map(child => child.id)
-              let isOnlyNewIds = isAppend && !newIds.find(id => idsBefore.indexOf(id) >= 0)
+              
+              if (fastMode) {
+                liveSocket.time("fastMode", () => {
 
-              if(!isOnlyNewIds){
-                appendPrependUpdates.push([toEl.id, idsBefore])
+                let idsBefore = new Set()
+                fromEl.childNodes.forEach(fromChild => {
+                  idsBefore.add(fromChild.id)
+                })
+
+                let modifiedEls = []
+                let newEls = []
+                toEl.childNodes.forEach(toChild => {
+                  if (idsBefore.has(toChild.id)) {
+                    modifiedEls.push(toChild)
+                  } else {
+                    newEls.push(toChild)
+                  }
+                })
+
+                modifiedEls.forEach(toChild => {
+                  maybe(document.getElementById(toChild.id), fromChild => morphdom(fromChild, toChild, morphDomOpts))
+                })
+
+                if (isAppend) {
+                  fromEl.append(...newEls)
+                } else {
+                  fromEl.prepend(...newEls)
+                }
+                newEls.forEach(nodeAdded)
+
+                DOM.mergeAttrs(fromEl, toEl)
+                this.trackBefore("updated", fromEl, toEl)
+              })
+                return false
+              } else {
+                let idsBefore = Array.from(fromEl.children).map(child => child.id)
+                let newIds = Array.from(toEl.children).map(child => child.id)
+                let isOnlyNewIds = isAppend && !newIds.find(id => idsBefore.indexOf(id) >= 0)
+                if(!isOnlyNewIds){
+                  appendPrependUpdates.push([toEl.id, idsBefore])
+                }
               }
             }
             DOM.syncAttrsToProps(toEl)
@@ -1435,8 +1470,11 @@ class DOMPatch {
             return true
           }
         }
+      }
+      liveSocket.time("morphdom", () => {
+        morphdom(targetContainer, diffHTML, morphDomOpts)
       })
-    })
+    
 
     if(liveSocket.isDebugEnabled()){ detectDuplicateIds() }
 
