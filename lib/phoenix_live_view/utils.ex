@@ -40,7 +40,11 @@ defmodule Phoenix.LiveView.Utils do
   """
   def clear_changed(%Socket{private: private, assigns: assigns} = socket) do
     temporary = Map.get(private, :temporary_assigns, %{})
-    %Socket{socket | changed: %{}, assigns: Map.merge(assigns, temporary)}
+    socket = Enum.reduce(temporary, %Socket{socket | changed: %{}}, fn {k, v}, socket ->
+      assign(socket, k, v)
+    end)
+
+    socket
   end
 
   @doc """
