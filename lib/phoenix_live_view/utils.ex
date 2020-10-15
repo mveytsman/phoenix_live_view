@@ -7,7 +7,7 @@ defmodule Phoenix.LiveView.Utils do
   alias Phoenix.LiveView.Socket
 
   # All available mount options
-  @mount_opts [:temporary_assigns, :layout]
+  @mount_opts [:temporary_assigns, :reset_assigns, :layout]
 
   @max_flash_age :timer.seconds(60)
 
@@ -38,17 +38,38 @@ defmodule Phoenix.LiveView.Utils do
   @doc """
   Clears the changes from the socket assigns.
   """
-  def clear_changed(%Socket{private: private, assigns: assigns} = socket) do
-    temporary = Map.get(private, :temporary_assigns, %{})
+  def clear_changed_apply_reset_assigns_temporary_assigns(socket) do
+    require Logger;
+    Logger.info("clear changed called #{inspect socket.assigns}")
+    socket
+    |> clear_changed()
+    |> apply_temporary_assigns()
+    |> apply_reset_assigns()
+  end
 
+  defp clear_changed(%Socket{private: private} = socket) do
     %Socket{
       socket
-      | changed: %{},
-        assigns: Map.merge(assigns, temporary),
-        private: Map.put(private, :changed, %{})
+      | changed: %{}, private: Map.put(private, :changed, %{})
     }
   end
 
+  defp apply_temporary_assigns(%Socket{private: private, assigns: assigns} = socket) do
+    temporary_assigns = Map.get(private, :temporary_assigns, %{})
+
+    %Socket{
+      socket
+      |  assigns: Map.merge(assigns, temporary_assigns)
+    }
+  end
+
+  defp apply_reset_assigns(%Socket{private: private} = socket) do
+    reset_assigns = Map.get(private, :reset_assigns, %{})
+
+    Enum.reduce(reset_assigns, socket, fn {key, value}, acc ->
+      assign(acc, key, value)
+    end)
+  end
   @doc """
   Checks if the socket changed.
   """
@@ -108,7 +129,6 @@ defmodule Phoenix.LiveView.Utils do
   """
   def post_mount_prune(%Socket{} = socket) do
     socket
-    |> clear_changed()
     |> drop_private([:connect_info, :connect_params, :assign_new])
   end
 
@@ -472,12 +492,30 @@ defmodule Phoenix.LiveView.Utils do
       raise "the :temporary_assigns mount option must be keyword list"
     end
 
+    # TODO: Error if temporary and reset have the same keys
+
     temp_assigns = Map.new(temp_assigns)
 
     %Socket{
       socket
       | assigns: Map.merge(temp_assigns, socket.assigns),
         private: Map.put(socket.private, :temporary_assigns, temp_assigns)
+    }
+  end
+
+  defp do_mount_opt(socket, :reset_assigns, reset_assigns) do
+    unless Keyword.keyword?(reset_assigns) do
+      raise "the :reset_assigns mount option must be keyword list"
+    end
+
+    # TODO: Error if temporary and reset have the same keys
+
+    reset_assigns = Map.new(reset_assigns)
+
+    %Socket{
+      socket
+      | assigns: Map.merge(reset_assigns, socket.assigns),
+        private: Map.put(socket.private, :reset_assigns, reset_assigns)
     }
   end
 
