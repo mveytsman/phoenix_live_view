@@ -178,13 +178,13 @@ defmodule Phoenix.LiveViewUnitTest do
       socket = assign(@socket, existing: "foo")
       assert socket.changed.existing == true
 
-      socket = Utils.clear_changed_apply_reset_assigns_temporary_assigns(socket)
+      socket = Utils.clear_changed(socket)
       assert assign(socket, existing: "foo").changed == %{}
     end
 
     test "keeps whole maps in changes" do
       socket = assign(@socket, existing: %{foo: :bar})
-      socket = Utils.clear_changed_apply_reset_assigns_temporary_assigns(socket)
+      socket = Utils.clear_changed(socket)
 
       socket = assign(socket, existing: %{foo: :baz})
       assert socket.assigns.existing == %{foo: :baz}

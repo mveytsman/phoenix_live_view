@@ -558,7 +558,19 @@ defmodule Phoenix.LiveView.Channel do
       end
 
     diff = Diff.render_private(socket, diff)
-    {:diff, diff, %{state | socket: Utils.clear_changed_apply_reset_assigns_temporary_assigns(socket), components: components}}
+
+    socket =
+      socket
+      |> Utils.clear_changed()
+      |> Utils.apply_temporary_assigns()
+      |> Utils.apply_reset_assigns()
+
+    {:diff, diff,
+     %{
+       state
+       | socket: socket,
+         components: components
+     }}
   end
 
   defp reply(state, ref, status, payload) do

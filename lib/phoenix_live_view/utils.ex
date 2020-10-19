@@ -35,41 +35,31 @@ defmodule Phoenix.LiveView.Utils do
     %{socket | assigns: new_assigns, changed: new_changed}
   end
 
-  @doc """
-  Clears the changes from the socket assigns.
-  """
-  def clear_changed_apply_reset_assigns_temporary_assigns(socket) do
-    require Logger;
-    Logger.info("clear changed called #{inspect socket.assigns}")
-    socket
-    |> clear_changed()
-    |> apply_temporary_assigns()
-    |> apply_reset_assigns()
-  end
-
-  defp clear_changed(%Socket{private: private} = socket) do
+  def clear_changed(%Socket{private: private} = socket) do
     %Socket{
       socket
-      | changed: %{}, private: Map.put(private, :changed, %{})
+      | changed: %{},
+        private: Map.put(private, :changed, %{})
     }
   end
 
-  defp apply_temporary_assigns(%Socket{private: private, assigns: assigns} = socket) do
+  def apply_temporary_assigns(%Socket{private: private, assigns: assigns} = socket) do
     temporary_assigns = Map.get(private, :temporary_assigns, %{})
 
     %Socket{
       socket
-      |  assigns: Map.merge(assigns, temporary_assigns)
+      | assigns: Map.merge(assigns, temporary_assigns)
     }
   end
 
-  defp apply_reset_assigns(%Socket{private: private} = socket) do
+  def apply_reset_assigns(%Socket{private: private} = socket) do
     reset_assigns = Map.get(private, :reset_assigns, %{})
 
     Enum.reduce(reset_assigns, socket, fn {key, value}, acc ->
       assign(acc, key, value)
     end)
   end
+
   @doc """
   Checks if the socket changed.
   """
