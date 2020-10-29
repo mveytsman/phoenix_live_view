@@ -194,6 +194,30 @@ defmodule Phoenix.LiveViewTest.ChildLive do
   end
 end
 
+defmodule Phoenix.LiveViewTest.AssignsLive do
+  use Phoenix.LiveView
+
+  def render(assigns), do: ~L|foo: <%= @foo %> / bar: <%= @bar %>|
+
+  def mount(_params, %{"opts" => opts}, socket) do
+    {:ok, assign(socket, foo: "foo", bar: "bar"), opts}
+  end
+
+  def handle_call(:get_socket, _from, socket) do
+    {:reply, socket, socket}
+  end
+
+  def handle_event("assign", %{"foo" => foo}, socket) do
+    socket = assign(socket, :foo, foo)
+    {:noreply, socket}
+  end
+
+  def handle_event("assign", %{"bar" => bar}, socket) do
+    socket = assign(socket, :bar, bar)
+    {:noreply, socket}
+  end
+end
+
 defmodule Phoenix.LiveViewTest.OptsLive do
   use Phoenix.LiveView
 

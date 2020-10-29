@@ -65,6 +65,32 @@ defmodule Phoenix.LiveView.AssignsTest do
       assert socket.assigns.canary == "canary"
     end
 
+    test "TODO temp assigns", %{conn: conn} do
+      {:ok, conf_live, html} =
+        conn
+        |> put_session(:opts, temporary_assigns: [foo: "default-value"])
+        |> live("/assigns")
+
+      assert html =~ "foo: foo / bar: bar"
+      assert render(conf_live) =~ "foo: foo / bar: bar"
+
+      assert render_submit(conf_live, :assign, %{foo: "temporary-assign-changed"}) =~ "foo: temporary-assign-changed / bar: bar"
+      assert render_submit(conf_live, :assign, %{bar: "bar-changed"}) =~ "foo: temporary-assign-changed / bar: bar-changed"
+    end
+
+    test "TODO reset assigns", %{conn: conn} do
+      {:ok, conf_live, html} =
+        conn
+        |> put_session(:opts, reset_assigns: [foo: "default-value"])
+        |> live("/assigns")
+
+      assert html =~ "foo: foo / bar: bar"
+      assert render(conf_live) =~ "foo: foo / bar: bar"
+
+      assert render_submit(conf_live, :assign, %{foo: "temporary-assign-changed"}) =~ "foo: temporary-assign-changed / bar: bar"
+      assert render_submit(conf_live, :assign, %{bar: "bar-changed"}) =~ "foo: default-value / bar: bar-changed"
+    end
+
     test "raises with invalid options", %{conn: conn} do
       assert_raise Plug.Conn.WrapperError,
                    ~r/invalid option returned from Phoenix.LiveViewTest.OptsLive.mount\/3/,
