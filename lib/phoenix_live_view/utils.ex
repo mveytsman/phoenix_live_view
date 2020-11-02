@@ -348,7 +348,10 @@ defmodule Phoenix.LiveView.Utils do
        when is_list(opts) do
     validate_mount_redirect!(socket.redirected)
 
-    Enum.reduce(opts, socket, fn {key, val}, acc -> mount_opt(acc, key, val, arity) end)
+    new_socket =
+      Enum.reduce(opts, socket, fn {key, val}, acc -> mount_opt(acc, key, val, arity) end)
+
+    new_socket
   end
 
   defp handle_mount_result!({:ok, %Socket{} = socket}, {:mount, _arity, _view}) do
@@ -486,6 +489,13 @@ defmodule Phoenix.LiveView.Utils do
     # TODO: Error if temporary and reset have the same keys
 
     temp_assigns = Map.new(temp_assigns)
+    conflicting_keys = conflicting_keys(Map.get(socket.private, :reset_assigns), temp_assigns)
+
+    unless Enum.empty?(conflicting_keys) do
+      raise "you have conflicting reset_assigns and temporary_assigns. your conflicting assigns are #{
+              inspect(conflicting_keys)
+            }"
+    end
 
     %Socket{
       socket
@@ -499,15 +509,32 @@ defmodule Phoenix.LiveView.Utils do
       raise "the :reset_assigns mount option must be keyword list"
     end
 
-    # TODO: Error if temporary and reset have the same keys
-
     reset_assigns = Map.new(reset_assigns)
+
+    conflicting_keys =
+      conflicting_keys(Map.get(socket.private, :temporary_assigns), reset_assigns)
+
+    unless Enum.empty?(conflicting_keys) do
+      raise "you have conflicting reset_assigns and temporary_assigns. your conflicting assigns are #{
+              inspect(conflicting_keys)
+            }"
+    end
 
     %Socket{
       socket
       | assigns: Map.merge(reset_assigns, socket.assigns),
         private: Map.put(socket.private, :reset_assigns, reset_assigns)
     }
+  end
+
+  defp conflicting_keys(_map1, nil), do: []
+
+  defp conflicting_keys(nil, _map2), do: []
+
+  defp conflicting_keys(map1, map2) do
+    keys1 = map1 |> Map.keys() |> MapSet.new()
+    keys2 = map2 |> Map.keys() |> MapSet.new()
+    MapSet.intersection(keys1, keys2) |> Enum.to_list()
   end
 
   defp drop_private(%Socket{private: private} = socket, keys) do

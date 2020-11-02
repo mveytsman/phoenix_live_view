@@ -65,7 +65,7 @@ defmodule Phoenix.LiveView.AssignsTest do
       assert socket.assigns.canary == "canary"
     end
 
-    test "TODO temp assigns", %{conn: conn} do
+    test "does not reset to default value when another assign is changed", %{conn: conn} do
       {:ok, conf_live, html} =
         conn
         |> put_session(:opts, temporary_assigns: [foo: "default-value"])
@@ -74,11 +74,34 @@ defmodule Phoenix.LiveView.AssignsTest do
       assert html =~ "foo: foo / bar: bar"
       assert render(conf_live) =~ "foo: foo / bar: bar"
 
-      assert render_submit(conf_live, :assign, %{foo: "temporary-assign-changed"}) =~ "foo: temporary-assign-changed / bar: bar"
-      assert render_submit(conf_live, :assign, %{bar: "bar-changed"}) =~ "foo: temporary-assign-changed / bar: bar-changed"
+      assert render_submit(conf_live, :assign, %{foo: "temporary-assign-changed"}) =~
+               "foo: temporary-assign-changed / bar: bar"
+
+      assert render_submit(conf_live, :assign, %{bar: "bar-changed"}) =~
+               "foo: temporary-assign-changed / bar: bar-changed"
     end
 
-    test "TODO reset assigns", %{conn: conn} do
+    test "raises when conflicting with reset assigns", %{
+      conn: conn
+    } do
+      assert_raise Plug.Conn.WrapperError,
+                   ~r/you have conflicting reset_assigns and temporary_assigns\. your conflicting assigns are \[:foo\]/,
+                   fn ->
+                     conn
+                     |> put_session(:opts,
+                       temporary_assigns: [
+                         foo: "temporary-assigns-value",
+                         bar: "reset-assigns-value"
+                       ],
+                       reset_assigns: [foo: "reset-assigns-value", baz: "temporary-assigns-value"]
+                     )
+                     |> live("/opts")
+                   end
+    end
+  end
+
+  describe "reset_assigns" do
+    test "resets to default value when another assign is changed", %{conn: conn} do
       {:ok, conf_live, html} =
         conn
         |> put_session(:opts, reset_assigns: [foo: "default-value"])
@@ -87,18 +110,38 @@ defmodule Phoenix.LiveView.AssignsTest do
       assert html =~ "foo: foo / bar: bar"
       assert render(conf_live) =~ "foo: foo / bar: bar"
 
-      assert render_submit(conf_live, :assign, %{foo: "temporary-assign-changed"}) =~ "foo: temporary-assign-changed / bar: bar"
-      assert render_submit(conf_live, :assign, %{bar: "bar-changed"}) =~ "foo: default-value / bar: bar-changed"
+      assert render_submit(conf_live, :assign, %{foo: "temporary-assign-changed"}) =~
+               "foo: temporary-assign-changed / bar: bar"
+
+      assert render_submit(conf_live, :assign, %{bar: "bar-changed"}) =~
+               "foo: default-value / bar: bar-changed"
     end
 
-    test "raises with invalid options", %{conn: conn} do
+    test "raises when conflicting with temporary assigns",
+         %{conn: conn} do
       assert_raise Plug.Conn.WrapperError,
-                   ~r/invalid option returned from Phoenix.LiveViewTest.OptsLive.mount\/3/,
+                   ~r/you have conflicting reset_assigns and temporary_assigns\. your conflicting assigns are \[:foo\]/,
                    fn ->
                      conn
-                     |> put_session(:opts, oops: [:description])
+                     |> put_session(:opts,
+                       reset_assigns: [foo: "reset-assigns-value", bar: "reset-assigns-value"],
+                       temporary_assigns: [
+                         foo: "temporary-assigns-value",
+                         baz: "temporary-assigns-value"
+                       ]
+                     )
                      |> live("/opts")
                    end
     end
+  end
+
+  test "raises with invalid options", %{conn: conn} do
+    assert_raise Plug.Conn.WrapperError,
+                 ~r/invalid option returned from Phoenix.LiveViewTest.OptsLive.mount\/3/,
+                 fn ->
+                   conn
+                   |> put_session(:opts, oops: [:description])
+                   |> live("/opts")
+                 end
   end
 end
