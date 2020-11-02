@@ -203,8 +203,8 @@ defmodule Phoenix.LiveViewTest.AssignsLive do
     {:ok, assign(socket, foo: "foo", bar: "bar"), opts}
   end
 
-  def handle_call(:get_socket, _from, socket) do
-    {:reply, socket, socket}
+  def handle_call(:get_assigns, _from, socket) do
+    {:reply, socket.assigns, socket}
   end
 
   def handle_event("assign", %{"foo" => foo}, socket) do
@@ -215,20 +215,6 @@ defmodule Phoenix.LiveViewTest.AssignsLive do
   def handle_event("assign", %{"bar" => bar}, socket) do
     socket = assign(socket, :bar, bar)
     {:noreply, socket}
-  end
-end
-
-defmodule Phoenix.LiveViewTest.OptsLive do
-  use Phoenix.LiveView
-
-  def render(assigns), do: ~L|<%= @description %>. <%= @canary %>|
-
-  def mount(_params, %{"opts" => opts}, socket) do
-    {:ok, assign(socket, description: "long description", canary: "canary"), opts}
-  end
-
-  def handle_call({:exec, func}, _from, socket) do
-    func.(socket)
   end
 end
 
